@@ -135,7 +135,7 @@ def main():
 
         # 无限循环，直到用户手动中断程序
         while True:
-            time.sleep(0.1)  # 小的延迟以减少 CPU 使用
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         print(f"\n{Fore.MAGENTA}程序被用户中断{Style.RESET_ALL}")
