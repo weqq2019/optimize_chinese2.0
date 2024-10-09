@@ -111,39 +111,41 @@ def on_f9():
         logging.error(f"处理 F9 热键时发生错误: {str(e)}")
 
 
-def on_f10():
-    print(f"\n{Fore.MAGENTA}所有优化的文本：{Style.RESET_ALL}")
-    for i, (original, optimized) in enumerate(optimized_texts, 1):
-        print(f"\n{Fore.BLUE}优化 #{i}:")
-        print(f"{Fore.GREEN}原文: {Fore.YELLOW}{original}")
-        print(f"{Fore.GREEN}优化后: {Fore.CYAN}{optimized}{Style.RESET_ALL}")
-    print(
-        f"\n{Fore.MAGENTA}总共成功优化次数: {Fore.WHITE}{successful_optimizations}{Style.RESET_ALL}"
-    )
+# def on_f10():
+#     print(f"\n{Fore.MAGENTA}所有优化的文本：{Style.RESET_ALL}")
+#     for i, (original, optimized) in enumerate(optimized_texts, 1):
+#         print(f"\n{Fore.BLUE}优化 #{i}:")
+#         print(f"{Fore.GREEN}原文: {Fore.YELLOW}{original}")
+#         print(f"{Fore.GREEN}优化后: {Fore.CYAN}{optimized}{Style.RESET_ALL}")
+#     print(
+#         f"\n{Fore.MAGENTA}总共成功优化次数: {Fore.WHITE}{successful_optimizations}{Style.RESET_ALL}"
+#     )
 
 
 def main():
     global successful_optimizations
     try:
+        print(f"{Fore.MAGENTA}程序已启动{Style.RESET_ALL}")
         print(f"{Fore.MAGENTA}选中文本并按下 F9 来优化...{Style.RESET_ALL}")
-        print(f"{Fore.MAGENTA}按下 F10 来显示所有优化过的文本...{Style.RESET_ALL}")
-        print(f"{Fore.MAGENTA}按下 Esc 来退出程序...{Style.RESET_ALL}")
+        print(f"{Fore.MAGENTA}按 Ctrl+C 来退出程序{Style.RESET_ALL}")
 
         keyboard.add_hotkey("f9", on_f9)
-        keyboard.add_hotkey("f10", on_f10)
 
         logging.info("程序已启动，等待用户操作...")
 
-        keyboard.wait("esc")
+        # 无限循环，直到用户手动中断程序
+        while True:
+            time.sleep(0.1)  # 小的延迟以减少 CPU 使用
 
-        print(
-            f"\n{Fore.MAGENTA}程序结束，总共成功优化次数: {Fore.WHITE}{successful_optimizations}{Style.RESET_ALL}"
-        )
+    except KeyboardInterrupt:
+        print(f"\n{Fore.MAGENTA}程序被用户中断{Style.RESET_ALL}")
     except Exception as e:
         logging.error(f"主程序中发生错误: {str(e)}")
     finally:
+        print(
+            f"\n{Fore.MAGENTA}程序结束，总共成功优化次数: {Fore.WHITE}{successful_optimizations}{Style.RESET_ALL}"
+        )
         logging.info("程序结束")
-        input("按回车键退出...")
 
 
 if __name__ == "__main__":
