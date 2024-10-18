@@ -1,6 +1,5 @@
-import requests
-import json
-import keyboard
-import logging
-import pyperclip
-import time
+requests
+keyboard
+logging
+pyperclip
+colorama
