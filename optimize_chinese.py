@@ -1,6 +1,5 @@
 import requests
 import json
-import keyboard
 import logging
 import pyperclip
 import time
@@ -9,6 +8,7 @@ from config import API_KEY
 import threading
 from pystray import Icon, MenuItem as item, Menu
 from PIL import Image, ImageDraw
+import keyboard
 
 # 初始化 colorama
 init(autoreset=True)
@@ -94,20 +94,41 @@ def on_f9():
     """按下 F9 触发优化，并切换托盘图标状态"""
     global successful_optimizations, icon
 
-    icon.icon = create_image("red")  # 设置为红色，表示任务进行中
+    # 添加状态检查，防止重复触发
+    if not hasattr(on_f9, "is_running"):
+        on_f9.is_running = False
+
+    if on_f9.is_running:
+        logging.warning("上一次优化任务还在进行中，请稍后再试...")
+        return
+
+    on_f9.is_running = True
+
+    try:
+        # 确保图标存在且可用
+        if icon and icon.visible:
+            icon.icon = create_image("red")  # 设置为红色，表示任务进行中
+    except Exception as e:
+        logging.error(f"更新图标状态失败: {str(e)}")
 
     def optimize_task():
         global successful_optimizations
         try:
             original_clipboard = pyperclip.paste()
-            keyboard.press_and_release("ctrl+c")
-            time.sleep(0.2)
-            input_text = pyperclip.paste()
-
-            if not input_text.strip():
-                print(
-                    f"{Fore.YELLOW}未选中文本，请选中文本后再按 F9。{Style.RESET_ALL}"
-                )
+            # 增加剪贴板操作的重试机制
+            max_retries = 3
+            for _ in range(max_retries):
+                try:
+                    keyboard.press_and_release("ctrl+c")
+                    time.sleep(0.3)  # 增加等待时间
+                    input_text = pyperclip.paste()
+                    if input_text and input_text.strip():
+                        break
+                except Exception as e:
+                    logging.warning(f"剪贴板操作失败，正在重试: {str(e)}")
+                    time.sleep(0.2)
+            else:
+                print(f"{Fore.YELLOW}无法获取选中的文本，请重试。{Style.RESET_ALL}")
                 return
 
             logging.info(f"用户选中的文本: {input_text}")
@@ -134,14 +155,20 @@ def on_f9():
             print(f"{Fore.RED}处理 F9 热键时发生错误: {str(e)}{Style.RESET_ALL}")
 
         finally:
-            icon.icon = create_image("green")  # 恢复为绿色
+            try:
+                if icon and icon.visible:
+                    icon.icon = create_image("green")  # 恢复为绿色
+            except Exception as e:
+                logging.error(f"恢复图标状态失败: {str(e)}")
+            on_f9.is_running = False
 
     # 启动优化任务线程
-    threading.Thread(target=optimize_task).start()
+    threading.Thread(target=optimize_task, name="OptimizeTask").start()
 
 
 def quit_action(icon, item):
     """退出程序"""
+    icon.visible = False
     icon.stop()
     print(f"\n{Fore.MAGENTA}程序已退出{Style.RESET_ALL}")
 
@@ -149,32 +176,41 @@ def quit_action(icon, item):
 def setup_tray():
     """设置托盘图标和菜单"""
     global icon
-    icon = Icon(
-        "GPT Optimizer",
-        create_image("green"),
-        menu=Menu(item("Quit", quit_action)),
-    )
-    icon.run()
+    try:
+        menu = Menu(
+            item("状态: 运行中", lambda: None, enabled=False), item("退出", quit_action)
+        )
+        icon = Icon("GPT Optimizer", create_image("green"), menu=menu)
+        icon.run()  # 这会阻塞当前线程
+    except Exception as e:
+        logging.error(f"设置托盘图标失败: {str(e)}")
+        raise  # 重新抛出异常，确保主程序知道托盘初始化失败
 
 
 def main():
     """程序入口"""
-    # 启动托盘线程
-    tray_thread = threading.Thread(target=setup_tray)
-    tray_thread.daemon = True
+    print(f"{Fore.MAGENTA}程序启动中...{Style.RESET_ALL}")
+
+    # 启动托盘线程，但不设为daemon线程
+    tray_thread = threading.Thread(target=setup_tray, name="TrayThread")
     tray_thread.start()
+
+    # 等待托盘图标初始化完成
+    time.sleep(1)
 
     print(f"{Fore.MAGENTA}程序已启动{Style.RESET_ALL}")
     print(f"{Fore.MAGENTA}选中文本并按下 F9 来优化...{Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}按 Ctrl+C 来退出程序{Style.RESET_ALL}")
+    print(f"{Fore.MAGENTA}右键托盘图标可退出程序{Style.RESET_ALL}")
 
     keyboard.add_hotkey("f9", on_f9, suppress=True)
     logging.info("程序已启动，等待用户操作...")
 
     try:
-        while True:
-            time.sleep(0.1)  # 主线程保持运行
+        # 保持主线程运行，直到托盘线程结束
+        tray_thread.join()
     except KeyboardInterrupt:
+        if icon:
+            icon.stop()
         print(f"\n{Fore.MAGENTA}程序被用户中断{Style.RESET_ALL}")
     finally:
         logging.info("程序结束")
