@@ -79,7 +79,6 @@ def optimize_chinese_text(input_text, retries=3):
                 result = response.json()
                 if "choices" in result and len(result["choices"]) > 0:
                     optimized_text = result["choices"][0]["message"]["content"]
-                    logging.info(f"优化完成: {optimized_text}")
                     return optimized_text
                 else:
                     logging.error(f"API 响应中没有找到优化后的文本: {result}")
